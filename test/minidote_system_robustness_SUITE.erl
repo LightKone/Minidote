@@ -5,7 +5,7 @@
 -export([all/0, init_per_suite/1, packet_loss_test/1, end_per_suite/1]).
 
 all() -> [
-  packet_loss_test
+  % packet_loss_test
 ].
 
 init_per_suite(Config) ->
