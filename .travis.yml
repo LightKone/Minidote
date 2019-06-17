@@ -1,0 +1,10 @@
+language: erlang
+otp_release:
+  - 21.2
+install:
+  - make
+script:
+  - make test
+  - make dialyzer
+sudo: required
+dist: trusty
