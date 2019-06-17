@@ -1,0 +1,23 @@
+{application, minidote,
+  [{description, "An OTP application"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {mod, {minidote_app, []}},
+    {applications,
+      [
+        kernel,
+        stdlib
+      ]},
+    {included_applications, [
+      lager,
+      ranch,
+      antidote_pb_codec,
+      antidote_crdt
+    ]},
+    {env, []},
+    {modules, []},
+
+    {maintainers, []},
+    {licenses, ["Apache 2.0"]},
+    {links, []}
+  ]}.

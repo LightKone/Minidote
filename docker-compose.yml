@@ -1,0 +1,42 @@
+version: '2'
+services:
+  minidote1:
+    image: minidote
+    hostname: minidote1
+    environment:
+      ERLANG_COOKIE: "minidote-cookie"
+      MINIDOTE_NODES: "minidote@minidote2,minidote@minidote3"
+    ports:
+      - "8087:8087"
+    networks:
+      - distributed_erlang
+    volumes:
+      - ./docker-data/m1:/var/minidote
+  minidote2:
+    image: minidote
+    hostname: minidote2
+    environment:
+      ERLANG_COOKIE: "minidote-cookie"
+      MINIDOTE_NODES: "minidote@minidote1,minidote@minidote3"
+    ports:
+      - "8088:8087"
+    networks:
+      - distributed_erlang
+    volumes:
+      - ./docker-data/m2:/var/minidote
+  minidote3:
+    image: minidote
+    hostname: minidote3
+    environment:
+      ERLANG_COOKIE: "minidote-cookie"
+      MINIDOTE_NODES: "minidote@minidote1,minidote@minidote2"
+    ports:
+      - "8089:8087"
+    networks:
+      - distributed_erlang
+    volumes:
+      - ./docker-data/m3:/var/minidote
+
+networks:
+  distributed_erlang:
+    driver: bridge
