@@ -1,7 +1,6 @@
--module(minidote_server).
+-module(old_minidote_server).
 -behavior(gen_server).
 
--include("minidote.hrl").
 
 %% API
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, handle_info/2, code_change/3, read_objects/3, update_objects/3, stop/1, start_link/1]).
@@ -17,14 +16,14 @@
   crdt_states = #{} :: maps:map(minidote:key(), antidote_crdt:crdt()),
   vc = vectorclock:new() :: vectorclock:clock(),
   self :: node(),
-  dot = dot:new() :: dot(),
-  ctxt = context:new() :: context(),
+  causal_broadcast :: pid(),
   waiting_requests = #{} :: maps:map(node(), priority_queue:pq({non_neg_integer(), from(), request()})),
   locks = #{} :: maps:map(key(), boolean()),
   locks_waiting = #{} :: maps:map(node(), queue:queue({from(), request()}))
 }).
 
 -record(downstream, {
+  sender :: node(),
   new_vc :: vectorclock:vectorclock(),
   new_effects :: [{minidote:key(), [antidote_crdt:effect()]}]
 }).
@@ -37,15 +36,6 @@
 -record(update_objects, {
   updates :: [{key(), Op :: atom(), Args :: any()}],
   clock :: vectorclock:vectorclock()
-}).
-
--record(camus, {
-  opq :: any()
-}).
-
--record(update, {
-  ds :: #downstream{},
-  fob :: #finish_update_objects{}
 }).
 
 -type request() :: #read_objects{} | #update_objects{}.
@@ -71,19 +61,17 @@ update_objects(Server, Updates, Clock) ->
   case Clock of ignore -> ok; X when is_map(X) -> ok; _ -> throw({not_a_valid_clock, Clock}) end,
   gen_server:call(Server, #update_objects{updates = Updates, clock = Clock}, 4000).
 
+
+
+
+
 init(_Args) ->
+  gen_server:cast(self(), init),
+  LogServer = minidote_op_log,
+  {ok, Broadcast} = minidote_logged_causal_broadcast:start_link(self(), LogServer),
+  {ok, Self} = minidote_logged_causal_broadcast:this_node(Broadcast),
   CrdtStates = maps:new(),
-  Self = self(),
-  F=fun(M) -> 
-    Self ! M
-  end,
-  camus:setnotifyfun(F),
-  %% members
-  %% camus:setmembership(Others),
-  Me = node(),
-  Dot = dot:new_dot(Me),
-  Ctxt = context:new(),
-  {ok, #state{dot = Dot, ctxt = Ctxt, crdt_states = CrdtStates, self=Me}}.
+  {ok, #state{causal_broadcast = Broadcast, self = Self, crdt_states = CrdtStates}}.
 
 handle_call(#update_objects{} = Req, From, State) ->
   NewState = handle_update_objects(Req, From, State),
@@ -91,34 +79,21 @@ handle_call(#update_objects{} = Req, From, State) ->
 handle_call(#read_objects{} = Req, From, State) ->
   NewState = handle_read_objects(Req, From, State),
   {noreply, NewState};
-handle_call(Req={camus, Opaque}, From, #state{dot=Dot, ctxt=Ctxt}=State1) ->
-  {Type, {Pyld, _TS}, {NewDot, NewCtxt}} = camus:handle(Opaque, {Dot, Ctxt}),
-  State = State1#state{dot=NewDot, ctxt=NewCtxt},
-  NewState = case Type of
-    deliver -> 
-      %% receiving downstream effects from other servers
-      %% apply the effects to the current state
-      Effects = Pyld#downstream.new_effects,
-      Objects = [Obj || {Obj, _} <- Effects],
-      handle_request_wih_dependency_clock(Req, From, State, ignore, Objects, fun(State) ->
-        deliver_downstream(State, Pyld#downstream.new_vc, Effects)
-      end);
-    stable ->
-      State
-  end,
+handle_call(Req={deliver, #downstream{sender = _Sender, new_vc = Vc, new_effects = Effects}}, From, State) ->
+  %% receiving downstream effects from other servers
+  %% apply the effects to the current state
+  Objects = [Obj || {Obj, _} <- Effects],
+  NewState = handle_request_wih_dependency_clock(Req, From, State, ignore, Objects, fun(State) ->
+    deliver_downstream(State, Vc, Effects)
+  end),
   check_waiting_requests(NewState),
   {noreply, NewState};
-handle_call(#update{} = Req, _From, State) ->
-  Ds = Req#update.ds,
-  {NewDot, NewCtxt} = camus:cbcast(Ds, {State#state.dot, State#state.ctxt}),
-  Fob = Req#update.fob,
-  gen_server:cast(self(), Fob),
-  {noreply, State#state{dot=NewDot, ctxt=NewCtxt}};
 handle_call(_Request, _From, _State) ->
   erlang:error(not_implemented).
 
 handle_cast(#finish_update_objects{from = From, new_crdt_state_map = NewCrdtStatesMap}, State) ->
-  NewVc = vectorclock:increment(State#state.vc, State#state.self),
+  Self = State#state.self,
+  NewVc = vectorclock:increment(State#state.vc, Self),
   Keys = maps:keys(NewCrdtStatesMap),
   NewState = State#state{
     vc          = NewVc,
@@ -130,10 +105,13 @@ handle_cast(#finish_update_objects{from = From, new_crdt_state_map = NewCrdtStat
   check_locks_waiting(NewState, Keys),
   check_waiting_requests(NewState),
   {noreply, NewState};
+handle_cast(init, State) ->
+  {noreply, handle_recover(State)};
 handle_cast(_Request, _State) ->
   erlang:error(not_implemented).
 
-handle_info(Req=#camus{}, State) ->
+
+handle_info(Req={deliver, #downstream{sender = _Sender, new_vc = Vc, new_effects = Effects}}, State) ->
   handle_call(Req, undef, State);
 handle_info({handle_waiting, P}, State) ->
   Waiting = maps:get(P, State#state.waiting_requests, priority_queue:new()),
@@ -187,7 +165,8 @@ deliver_downstream(State, Vc, Effects) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-terminate(_Reason, _State) ->
+terminate(_Reason, State) ->
+  minidote_logged_causal_broadcast:stop(State#state.causal_broadcast),
   ok.
 
 crdt_state(BoundObj, State) ->
@@ -207,6 +186,7 @@ apply_effects(State, BoundObj, Effects) ->
     S2
   end, CrdtState, Effects),
   {BoundObj, NewCrdtState}.
+
 
 perform_updates(CrdtState, Updates) ->
   {S, Effs} = lists:foldl(fun({BoundObj, Op, Args}, {S, Effs}) ->
@@ -262,11 +242,13 @@ handle_read_objects(#read_objects{keys = Objects, clock = Clock} = Req, From, St
     State
   end).
 
+
 handle_update_objects(#update_objects{updates = Updates, clock = Clock} = Req, From, State1) ->
   Objects = [O || {O, _, _} <- Updates],
   handle_request_wih_dependency_clock(Req, From, State1, Clock, Objects, fun(State) ->
     ThisServer = self(),
-    % Self = State#state.self,
+    CausalBroadcast = State#state.causal_broadcast,
+    Self = State#state.self,
     UpdatesByKey = list_utils:group_by(fun({K, _, _}) -> K end, Updates),
     Keys = maps:keys(UpdatesByKey),
     UpdatesByKeyWithState = [{K, crdt_state(K, State), Upds} || {K, Upds} <- maps:to_list(UpdatesByKey)],
@@ -280,8 +262,9 @@ handle_update_objects(#update_objects{updates = Updates, clock = Clock} = Req, F
       NewEffects = [{K, Effs} || {K, {_, Effs}} <- EffectsAndStates],
       NewCrdtStatesMap = maps:from_list(NewCrdtStates),
       % might not be the latest new VC because of concurrent processes, but good estimate
-      NewVc = vectorclock:increment(State#state.vc, State#state.self),
-      gen_server:call(ThisServer, {update, #downstream{new_vc = NewVc, new_effects = NewEffects}, #finish_update_objects{from = From, new_crdt_state_map = NewCrdtStatesMap}})
+      NewVc = vectorclock:increment(State#state.vc, Self),
+      minidote_logged_causal_broadcast:broadcast(CausalBroadcast, #downstream{sender = Self, new_vc = NewVc, new_effects = NewEffects}),
+      gen_server:cast(ThisServer, #finish_update_objects{from = From, new_crdt_state_map = NewCrdtStatesMap})
     end),
     State#state{
       % acquire locks
@@ -315,3 +298,14 @@ check_locks_waiting(State, Keys) ->
         ok
     end
   end, Keys).
+
+handle_recover(State) ->
+  receive
+    {deliver, #downstream{sender = _Sender, new_vc = Vc, new_effects = Effects}} ->
+      State2 = deliver_downstream(State, Vc, Effects),
+      handle_recover(State2);
+    log_recovery_done ->
+      State
+  after 10000 ->
+    throw(timeout_in_recovery)
+  end.
