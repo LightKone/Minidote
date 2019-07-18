@@ -6,11 +6,11 @@
     {applications,
       [
         kernel,
-        stdlib
+        stdlib,
+        camus
       ]},
     {included_applications, [
       lager,
-      ranch,
       antidote_pb_codec,
       antidote_crdt
     ]},
