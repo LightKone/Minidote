@@ -38,7 +38,6 @@ init([]) ->
     type => supervisor,
     modules => [ranch_sup]},
   {ok, {SupFlags, [
-    RanchSupSpec,
     pb_listener()
   ]}}.
 
