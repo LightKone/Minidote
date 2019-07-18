@@ -1,5 +1,6 @@
 {"1.1.0",
-[{<<"antidote_crdt">>,
+[{<<"acceptor_pool">>,{pkg,<<"acceptor_pool">>,<<"1.0.0">>},1},
+ {<<"antidote_crdt">>,
   {git,"https://github.com/AntidoteDB/antidote_crdt",
        {ref,"5cf852a9d11cb25487d186a6ca5fdd95cf4aed0f"}},
   0},
@@ -7,14 +8,27 @@
   {git,"https://github.com/AntidoteDB/antidote_pb_codec",
        {ref,"e8c0fbc31749f4f94f1ade42a942aee87a6add21"}},
   0},
+ {<<"camus">>,
+  {git,"https://github.com/gyounes/camus",
+       {ref,"27c6a117d1b72a99915a217861915228a1ff7fb6"}},
+  0},
+ {<<"erlang_term">>,{pkg,<<"erlang_term">>,<<"1.7.3">>},1},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
+ {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.0">>},1},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.7.0">>},0},
  {<<"meck">>,{pkg,<<"meck">>,<<"0.8.13">>},0},
- {<<"ranch">>,{pkg,<<"ranch">>,<<"1.5.0">>},0}]}.
+ {<<"ranch">>,{pkg,<<"ranch">>,<<"1.5.0">>},0},
+ {<<"rand_compat">>,{pkg,<<"rand_compat">>,<<"0.0.3">>},1},
+ {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},1}]}.
 [
 {pkg_hash,[
+ {<<"acceptor_pool">>, <<"43C20D2ACAE35F0C2BCD64F9D2BDE267E459F0F3FD23DAB26485BF518C281B21">>},
+ {<<"erlang_term">>, <<"9A77FAFE03DA5726A2013F12246CE2D2068B5DEE6C03752EC80A6575AFD3AC4B">>},
  {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
+ {<<"jsx">>, <<"749BEC6D205C694AE1786D62CEA6CC45A390437E24835FD16D12D74F07097727">>},
  {<<"lager">>, <<"563AB17CD32134A3DD17EC3B3622E6D8F827506AA4F8C489158879BED87D980B">>},
  {<<"meck">>, <<"FFEDB39F99B0B99703B8601C6F17C7F76313EE12DE6B646E671E3188401F7866">>},
- {<<"ranch">>, <<"F04166F456790FEE2AC1AA05A02745CC75783C2BFB26D39FAF6AEFC9A3D3A58A">>}]}
+ {<<"ranch">>, <<"F04166F456790FEE2AC1AA05A02745CC75783C2BFB26D39FAF6AEFC9A3D3A58A">>},
+ {<<"rand_compat">>, <<"011646BC1F0B0C432FE101B816F25B9BBB74A085713CEE1DAFD2D62E9415EAD3">>},
+ {<<"time_compat">>, <<"23FE0AD1FDF3B5B88821B2D04B4B5E865BF587AE66056D671FE0F53514ED8139">>}]}
 ].
