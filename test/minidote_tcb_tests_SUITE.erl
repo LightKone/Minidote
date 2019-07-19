@@ -64,9 +64,9 @@ end_per_testcase(Case, _Config) ->
 
 all() ->
     [
-     test1
-     % test2,
-     % test3
+     test1,
+     test2,
+     test3
     ].
 
 
@@ -76,37 +76,53 @@ all() ->
 
 %% Test causal delivery and stability with full membership
 test1(_Config) ->
-  test(mode3, fullmesh, 3, 0),
+  test(fullmesh, 3, undefined),
   ok.
 test2(_Config) ->
-  test(mode3, fullmesh, 3, undefined),
+  test(fullmesh, 3, 50),
   ok.
 test3(_Config) ->
-  test(mode3, fullmesh, 3, [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]),
+  test(fullmesh, 3, [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]),
   ok.
 
 %% Test causal delivery and stability with full membership
-test(Mode, Overlay, NodesNumber, Latency) ->
+test(Overlay, NodesNumber, Latency) ->
   Options = [{node_number, NodesNumber},
              {overlay, Overlay},
-             {latency, Latency},
-             {camus_mode, Mode}],
+             {latency, Latency}],
   IdToNode = start(Options),
   ct:pal("started"),
   construct_overlay(Options, IdToNode),
   ct:pal("overlay constructed"),
-  %% start causal delivery and stability test
-  minidote_tests(IdToNode, Options),
-  ct:pal("minidote tests done"),
+  %% start minidote tests
+  Nodes = [Node || {_Id, Node} <- IdToNode],
+  fun_setmembership(Nodes),
+  case Latency of
+    Val when (Val == undefined orelse Val == 0) ->
+      minidote_test_no_latency(Nodes);
+    L when is_integer(L) ->
+      minidote_test_same_latency(Nodes);
+    _ ->
+      minidote_test_different_latencies(Nodes)
+  end,
   stop(IdToNode),
   ct:pal("node stopped"),
   ok.
 
-minidote_tests(IdToNode, Options) ->
-  Nodes = [Node || {_Id, Node} <- IdToNode],
+minidote_test_no_latency(Nodes) ->
+  ok = counter_test_local(Nodes),
+  ok = counter_test_waiting(Nodes),
+  ok = counter_test_with_clock(Nodes),
+  ok = mv_register_concurrent(Nodes).
 
-  fun_setmembership(Nodes),
+minidote_test_same_latency(Nodes) ->
+  ok = counter_test_local(Nodes),
+  ok = counter_test_waiting(Nodes),
+  ok = counter_test_with_clock(Nodes),
+  ok = mv_register_concurrent(Nodes),
+  ok = mv_register_concurrent2(Nodes).
 
+minidote_test_different_latencies(Nodes) ->
   ok = counter_test_local(Nodes),
   ok = counter_test_waiting(Nodes),
   ok = counter_test_with_clock(Nodes),
@@ -187,6 +203,10 @@ mv_register_concurrent2(Nodes) ->
   % assign value c on node c
   {ok, Vc3} = rpc:call(NodeC, minidote, update_objects, [[{{<<"key">>, antidote_crdt_register_mv, <<"mv_register_concurrent2">>}, assign, <<"C">>}], ignore]),
 
+  ct:pal("Vc1 = ~p", [Vc1]),
+  ct:pal("Vc2 = ~p", [Vc2]),
+  ct:pal("Vc3 = ~p", [Vc3]),
+
   % eventually all replicas should have the same value:
   test_setup:eventually(fun() ->
     {ok, [{{<<"key">>, antidote_crdt_register_mv, <<"mv_register_concurrent2">>}, ValA}], VcA} = rpc:call(NodeA, minidote, read_objects, [[{<<"key">>, antidote_crdt_register_mv, <<"mv_register_concurrent2">>}], ignore]),
@@ -217,7 +237,6 @@ start(Options) ->
   ok = start_erlang_distribution(),
   NodeNumber = proplists:get_value(node_number, Options),
   Latency = proplists:get_value(latency, Options),
-  Mode = proplists:get_value(camus_mode, Options),
 
   InitializerFun = fun(I, Acc) ->
     
@@ -274,8 +293,7 @@ start(Options) ->
       end,
       [{node_number, NodeNumber},
        {camus_port, get_port(Id)},
-       {camus_latency, Latency},
-       {camus_mode, Mode}]
+       {camus_latency, Latency}]
     )
     end,
     lists:foreach(ConfigureFun, IdToNode),
