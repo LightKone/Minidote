@@ -10,7 +10,7 @@
   0},
  {<<"camus">>,
   {git,"https://github.com/LightKone/camus",
-       {ref,"60711f6bdfe2d9455352db2685904573b5630554"}},
+       {ref,"c0d292a4018b4d383332cfaaafa40cc66c6b30b8"}},
   0},
  {<<"erlang_term">>,{pkg,<<"erlang_term">>,<<"1.7.3">>},1},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
