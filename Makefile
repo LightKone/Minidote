@@ -58,6 +58,11 @@ docker-run:
 docker-run-cluster:
 	docker-compose up
 
+docker-build-tcb:
+	docker build -f Dockerfile-tcb -t gyounes/minidote:latest .
+
+docker-run-tcb:
+	docker run -d --name minidote -p 8087:8087 gyounes/minidote:latest
 
 run-cluster-node1:
 	MINIDOTE_NODES=minidote2@127.0.0.1,minidote3@127.0.0.1 LOG_DIR=./data/m1/ OP_LOG_DIR=./data/m1/op_log/ MINIDOTE_PORT=8087 rebar3 shell --name minidote1@127.0.0.1
