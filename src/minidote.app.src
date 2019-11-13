@@ -7,10 +7,10 @@
       [
         kernel,
         stdlib,
-        camus
+        camus,
+        lager
       ]},
     {included_applications, [
-      lager,
       antidote_pb_codec,
       antidote_crdt
     ]},
