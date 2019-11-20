@@ -344,6 +344,6 @@ parse(Node) ->
     [IdStr, PortStr] = string:split(Node, ":"),
     [_, IpStr] = string:split(IdStr, "@"),
     Id = list_to_atom(IdStr),
-    Ip = inet_parse:address(IpStr),
+    {ok, Ip} = inet_parse:address(IpStr),
     Port = list_to_integer(PortStr),
     {Id, Ip, Port}.
