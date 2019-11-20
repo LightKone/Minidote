@@ -3,6 +3,8 @@
 
 -include("minidote.hrl").
 
+-define(INTERVAL, 1000).
+
 %% API
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, handle_info/2, code_change/3, read_objects/3, update_objects/3, stop/1, start_link/1]).
 
@@ -72,15 +74,23 @@ update_objects(Server, Updates, Clock) ->
   gen_server:call(Server, #update_objects{updates = Updates, clock = Clock}, 4000).
 
 init(_Args) ->
+  Members = os:getenv("MEMBERS", ""),
+  List = string:split(Members, ","),
+  lager:info("List of members: ~p", List),
+  Ids = connect(List),
+
   CrdtStates = maps:new(),
   Self = self(),
   F=fun(M) -> 
     Self ! M
   end,
   camus:setnotifyfun(F),
-  %% members
-  %% camus:setmembership(Others),
+
   Me = node(),
+  Others = Ids -- Me,
+  lager:info("Me ~p | Other ~p", [Me, Others]),
+  camus:setmembership(Others),
+
   Dot = dot:new_dot(Me),
   Ctxt = context:new(),
   {ok, #state{dot = Dot, ctxt = Ctxt, crdt_states = CrdtStates, self=Me}}.
@@ -315,3 +325,25 @@ check_locks_waiting(State, Keys) ->
         ok
     end
   end, Keys).
+
+connect([]) ->
+    [];
+connect([Node|Rest]=All) ->
+    {Id, _, _}=Spec = parse(Node),
+    case camus_ps:join(Spec) of
+        ok ->
+            [Id | connect(Rest)];
+        Error ->
+            lager:info("Couldn't connect to ~p. Reason ~p. Will try again in ~p ms",
+                       [Spec, Error, ?INTERVAL]),
+            timer:sleep(?INTERVAL),
+            connect(All)
+    end.
+
+parse(Node) ->
+    [IdStr, PortStr] = string:split(Node, ":"),
+    [_, IpStr] = string:split(IdStr, "@"),
+    Id = list_to_atom(IdStr),
+    Ip = inet_parse:address(IpStr),
+    Port = list_to_integer(PortStr),
+    {Id, Ip, Port}.
