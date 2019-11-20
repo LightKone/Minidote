@@ -77,7 +77,9 @@ init(_Args) ->
   Members = os:getenv("MEMBERS", ""),
   List = string:split(Members, ","),
   lager:info("List of members: ~p", List),
-  Ids = connect(List),
+  Me = node(),
+  Others = connect(List),
+  lager:info("Me ~p | Others ~p", [Me, Others]),
 
   CrdtStates = maps:new(),
   Self = self(),
@@ -85,10 +87,6 @@ init(_Args) ->
     Self ! M
   end,
   camus:setnotifyfun(F),
-
-  Me = node(),
-  Others = Ids -- Me,
-  lager:info("Me ~p | Other ~p", [Me, Others]),
   camus:setmembership(Others),
 
   Dot = dot:new_dot(Me),
