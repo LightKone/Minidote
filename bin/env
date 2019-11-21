@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# CAMUS_IP
+if [ -z "${CAMUS_IP}" ]; then
+  export CAMUS_IP=127.0.0.1
+fi
+
+# Peer Port
+if [ -z "${CAMUS_PORT}" ]; then
+  export CAMUS_PORT=6866
+fi
+
+if [ -z "${COOKIE}" ]; then
+  export COOKIE=minidote
+fi
+
+export NODE_NAME=${COOKIE}-${CAMUS_PORT}@${CAMUS_IP}
+
+export RELX_REPLACE_OS_VARS=true
+
+echo "CAMUS_IP: ${CAMUS_IP}"
+echo "CAMUS_PORT: ${CAMUS_PORT}"
+echo "NODE_NAME: ${NODE_NAME}"
+
+RELNAME=$(dirname "$0")/minidote
+exec "${RELNAME}" foreground "$@"
