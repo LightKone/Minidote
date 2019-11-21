@@ -12,14 +12,12 @@ EXPOSE 8087
 # Port for CAMUS
 EXPOSE 6866
 
-ENV NAME=/minidote
-
 COPY . /tmp/minidote
+WORKDIR /tmp/minidote
 
-RUN cd /tmp/minidote \
-    && make rel \
-    && cp -r _build/default/rel/$NAME $NAME
+RUN make rel
+RUN cp -r _build/default/rel/minidote /minidote
 
-WORKDIR $NAME
+WORKDIR /minidote
 
 CMD ["bin/env"]
