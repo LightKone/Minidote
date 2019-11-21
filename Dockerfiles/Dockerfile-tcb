@@ -1,6 +1,4 @@
-FROM erlang:20.2.2-slim
-
-RUN apt-get update && apt-get install -y software-properties-common
+FROM erlang:22
 
 ENV LOG_DIR "/var/minidote/logs"
 ENV OP_LOG_DIR "/var/minidote/op_log"
@@ -14,11 +12,13 @@ EXPOSE 8087
 # Port for CAMUS
 EXPOSE 6866
 
-ARG profile=default
-
 ENV NAME=/minidote
 
-COPY _build/${profile}/rel/$NAME $NAME
+COPY . /tmp/minidote
+
+RUN cd /tmp/minidote \
+    && make rel \
+    && cp -r _build/default/rel/$NAME $NAME
 
 WORKDIR $NAME
 

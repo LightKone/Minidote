@@ -10,8 +10,7 @@ DIR=$(dirname "$0")
 IMAGE=gyounes/minidote:${TAG}
 DOCKERFILE=${DIR}/../Dockerfiles/Dockerfile-tcb
 
-# release
-cd "${DIR}"/.. && make rel && cd -
+rm -rf _build/
 
 # build image
 docker build \
