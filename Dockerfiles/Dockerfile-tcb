@@ -1,4 +1,4 @@
-FROM erlang:22
+FROM erlang:20.2.2
 
 ENV LOG_DIR "/var/minidote/logs"
 ENV OP_LOG_DIR "/var/minidote/op_log"
