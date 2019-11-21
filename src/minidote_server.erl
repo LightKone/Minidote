@@ -338,9 +338,9 @@ connect([Node|Rest]=All) ->
             connect(All)
     end.
 
-parse(Node) ->
-    [IdStr, PortStr] = string:split(Node, ":"),
-    [_, IpStr] = string:split(IdStr, "@"),
+parse(IdStr) ->
+    [RestStr, IpStr] = string:split(IdStr, "@"),
+    [_, PortStr] = string:split(RestStr, "-"),
     Id = list_to_atom(IdStr),
     {ok, Ip} = inet_parse:address(IpStr),
     Port = list_to_integer(PortStr),
