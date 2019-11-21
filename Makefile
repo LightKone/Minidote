@@ -47,6 +47,7 @@ test: compile_tests
 endif
 
 rel:
+	rm -rf _build/default/rel/
 	rebar3 release
 
 docker:
