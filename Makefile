@@ -50,7 +50,7 @@ rel:
 	rebar3 release
 
 docker:
-	docker build . -t minidote
+	docker build -f Dockerfiles/Dockerfile -t minidote .
 
 docker-run:
 	docker run --rm -it -p 8087:8087 minidote
@@ -59,7 +59,7 @@ docker-run-cluster:
 	docker-compose up
 
 docker-build-tcb:
-	docker build -f Dockerfile-tcb -t gyounes/minidote:latest .
+	docker build -f Dockerfiles/Dockerfile-tcb -t gyounes/minidote:latest .
 
 docker-run-tcb:
 	docker run -d --name minidote -p 8087:8087 gyounes/minidote:latest
