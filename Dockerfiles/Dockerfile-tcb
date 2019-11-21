@@ -2,7 +2,7 @@ FROM erlang:22
 
 ENV NODE_NAME "minidote@127.0.0.1"
 ENV SHORT_NAME "false"
-
+ENV COOKIE "minidote"
 ENV LOG_DIR "/var/minidote/logs"
 ENV OP_LOG_DIR "/var/minidote/op_log"
 ENV MINIDOTE_POOL_SIZE 100
@@ -16,13 +16,9 @@ RUN cd /opt/minidote_src \
     && make rel \
     && cp -r _build/default/rel/minidote /opt/
 
-# Distributed Erlang Port Mapper
-EXPOSE 4369
 # PB Port for Minidote
 EXPOSE 8087
 # Port for CAMUS
 EXPOSE 6866
-# Distributed Erlang
-EXPOSE 9100
 
 CMD ["/opt/minidote/bin/minidote", "foreground"]
