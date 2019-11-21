@@ -31,3 +31,4 @@ test/.rebar3/erlcinfo
 antidote.iml
 edoc/
 docker-data
+priv
