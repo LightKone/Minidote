@@ -76,7 +76,7 @@ update_objects(Server, Updates, Clock) ->
 init(_Args) ->
   Members = os:getenv("MEMBERS", ""),
   List = string:split(Members, ","),
-  lager:info("List of members: ~p", List),
+  lager:info("List of members: ~p", [List]),
   Me = node(),
   Others = connect(List),
   lager:info("Me ~p | Others ~p", [Me, Others]),
