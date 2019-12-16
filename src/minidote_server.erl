@@ -77,7 +77,10 @@ init(_Args) ->
   Members = os:getenv("MEMBERS", ""),
   List = string:split(Members, ",", all),
   lager:info("List of members: ~p", [List]),
-  Me = node(),
+  Me = case os:getenv("CAMUS_NODENAME", "") of
+    "" -> node();
+    V -> list_to_atom(V)
+  end,
   Others = connect(List),
   lager:info("Me ~p | Others ~p", [Me, Others]),
 
@@ -342,6 +345,10 @@ parse(IdStr) ->
     [RestStr, IpStr] = string:split(IdStr, "@"),
     [_, PortStr] = string:split(RestStr, "-"),
     Id = list_to_atom(IdStr),
-    {ok, Ip} = inet_parse:address(IpStr),
+    Ip = case inet_parse:address(IpStr) of
+        {ok, I} -> I;
+        {error, Err} ->
+          IpStr
+      end,
     Port = list_to_integer(PortStr),
     {Id, Ip, Port}.
