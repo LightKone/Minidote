@@ -34,8 +34,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("kernel/include/inet.hrl").
 
--include("minidote.hrl").
-
+-define(APP, minidote).
 -define(PORT, 9000).
 -define(MINIDOTE_PORT, 10017).
 
