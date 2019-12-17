@@ -7,6 +7,12 @@
 %% API
 -export([start_slaves/2, stop_slaves/1, eventually/1, eventually/3, mock_link_layer/2, add_delay_r/3, eventually/2, counter/0, counter_get/1, counter_inc/2]).
 
+camus_port(P) -> 
+  integer_to_list(P+1000).
+
+camus_nodename(P) -> 
+  % "minidote-" ++ camus_port(P) ++ "@127.0.0.1".
+  "minidote-" ++ camus_port(P) ++ "@localhost".
 
 start_slaves(Config, NodeConfig) ->
   Slaves = list_utils:pmap(fun(N) -> start_slave(N, Config, NodeConfig -- [N]) end, NodeConfig),
@@ -16,10 +22,9 @@ start_slaves(Config, NodeConfig) ->
   ?assertMatch(ok, Disconnected),
   [{nodes, Slaves}, {node_config, NodeConfig} | Config].
 
-start_slave({Node, Port}, Config, NodeConfig) ->
-  CamusPort = fun(P) -> integer_to_list(P+1000) end,
-  CamusNodename = fun(P) -> "minidote-" ++ CamusPort(P) ++ "@127.0.0.1" end,
-  Members = string:join([CamusNodename(P) || {_, P} <- NodeConfig], ","),
+start_slave({_Node, Port}, Config, NodeConfig) ->
+  Node = list_to_atom(camus_nodename(Port)),
+  Members = string:join([camus_nodename(P) || {_, P} <- NodeConfig], ","),
   ErlFlags =
     "-pa " ++ string:join(code:get_path(), " ") ++ " ",
   PrivDir = proplists:get_value(priv_dir, Config),
@@ -33,8 +38,8 @@ start_slave({Node, Port}, Config, NodeConfig) ->
       {startup_timeout, 10000},
       {env, [
         {"MINIDOTE_PORT", integer_to_list(Port)},
-        {"CAMUS_PORT", CamusPort(Port)},
-        {"CAMUS_NODENAME", CamusNodename(Port)},
+        {"CAMUS_PORT", camus_port(Port)},
+        {"NODE_NAME", camus_nodename(Port)},
         {"MEMBERS", Members},
         {"LOG_DIR", NodeDir},
         {"OP_LOG_DIR", filename:join([NodeDir, "op_log"])}
@@ -63,10 +68,11 @@ start_slave({Node, Port}, Config, NodeConfig) ->
 
 stop_slaves(Config) ->
   NodeConfig = proplists:get_value(node_config, Config),
-  list_utils:pmap(fun({Node, _}) -> stop_slave(Node) end, NodeConfig),
+  list_utils:pmap(fun({_Node, Port}) -> stop_slave(Port) end, NodeConfig),
   ok.
 
-stop_slave(Node) ->
+stop_slave(Port) ->
+  Node = list_to_atom(camus_nodename(Port)),
   case ct_slave:stop(Node) of
     {ok, HostNode} ->
       ct:pal("Node ~p [STOP OK]", [HostNode]);
