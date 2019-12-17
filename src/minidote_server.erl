@@ -121,7 +121,7 @@ handle_call(#update{} = Req, _From, State) ->
   {NewDot, NewCtxt} = camus:cbcast(Ds, {State#state.dot, State#state.ctxt}),
   Fob = Req#update.fob,
   gen_server:cast(self(), Fob),
-  {noreply, State#state{dot=NewDot, ctxt=NewCtxt}};
+  {reply, ok, State#state{dot=NewDot, ctxt=NewCtxt}};
 handle_call(_Request, _From, _State) ->
   erlang:error(not_implemented).
 
