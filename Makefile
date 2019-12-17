@@ -73,4 +73,4 @@ run-cluster-node3:
 	MINIDOTE_NODES=minidote1@127.0.0.1,minidote2@127.0.0.1 LOG_DIR=./data/m3/ OP_LOG_DIR=./data/m3/op_log/ MINIDOTE_PORT=8089 rebar3 shell --name minidote3@127.0.0.1
 
 tcb:
-	pkill -9 beam.smp ; rm -rf priv/lager ; ${REBAR} ct --readable=false --verbose --suite minidote_tcb_tests_SUITE
+	pkill -9 beam.smp ; rm -rf priv/lager ; ${REBAR} ct --readable=false --verbose --suite minidote_tcb_remote_tests_SUITE
