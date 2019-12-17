@@ -7,20 +7,28 @@
 %% API
 -export([start_slaves/2, stop_slaves/1, eventually/1, eventually/3, mock_link_layer/2, add_delay_r/3, eventually/2, counter/0, counter_get/1, counter_inc/2]).
 
+camus_port(P) -> 
+  integer_to_list(P+1000).
+
+camus_nodename(P) -> 
+  % "minidote-" ++ camus_port(P) ++ "@127.0.0.1".
+  "minidote-" ++ camus_port(P) ++ "@localhost".
 
 start_slaves(Config, NodeConfig) ->
-  Slaves = list_utils:pmap(fun(N) -> start_slave(N, Config) end, NodeConfig),
+  Slaves = list_utils:pmap(fun(N) -> start_slave(N, Config, NodeConfig -- [N]) end, NodeConfig),
   [{_, FirstPort}|_] = NodeConfig,
   {ok, Pid} = antidotec_pb_socket:start("localhost", FirstPort),
   Disconnected = antidotec_pb_socket:stop(Pid),
   ?assertMatch(ok, Disconnected),
   [{nodes, Slaves}, {node_config, NodeConfig} | Config].
 
-start_slave({Node, Port}, Config) ->
+start_slave({_Node, Port}, Config, NodeConfig) ->
+  Node = list_to_atom(camus_nodename(Port)),
+  Members = string:join([camus_nodename(P) || {_, P} <- NodeConfig], ","),
   ErlFlags =
     "-pa " ++ string:join(code:get_path(), " ") ++ " ",
-  %PrivDir = proplists:get_value(priv_dir, Config),
-  PrivDir = ".",
+  PrivDir = proplists:get_value(priv_dir, Config),
+  % PrivDir = ".",
   NodeDir = filename:join([PrivDir, Node]),
   CodePath = lists:filter(fun filelib:is_dir/1, code:get_path()),
   case ct_slave:start(Node,
@@ -30,6 +38,9 @@ start_slave({Node, Port}, Config) ->
       {startup_timeout, 10000},
       {env, [
         {"MINIDOTE_PORT", integer_to_list(Port)},
+        {"CAMUS_PORT", camus_port(Port)},
+        {"NODE_NAME", camus_nodename(Port)},
+        {"MEMBERS", Members},
         {"LOG_DIR", NodeDir},
         {"OP_LOG_DIR", filename:join([NodeDir, "op_log"])}
         ]},
@@ -38,8 +49,8 @@ start_slave({Node, Port}, Config) ->
       {erl_flags, ErlFlags}]) of
     {ok, HostNode} ->
       ct:pal("Node ~p [OK1]", [HostNode]),
-      rpc:call(HostNode, application, ensure_all_started, [minidote]),
-      ct:pal("Node ~p [OK2]", [HostNode]),
+      {ok, Start} = rpc:call(HostNode, application, ensure_all_started, [minidote]),
+      ct:pal("Node ~p ~p [OK2]", [HostNode, Start]),
       pong = net_adm:ping(HostNode),
       HostNode;
     {error, started_not_connected, HostNode} ->
@@ -52,15 +63,16 @@ start_slave({Node, Port}, Config) ->
       ct:pal("Node ~p [START failed] already_started", [HostNode]),
       % try again:
       stop_slave(Node),
-      start_slave({Node, Port}, Config)
+      start_slave({Node, Port}, Config, NodeConfig)
   end.
 
 stop_slaves(Config) ->
   NodeConfig = proplists:get_value(node_config, Config),
-  list_utils:pmap(fun({Node, _}) -> stop_slave(Node) end, NodeConfig),
+  list_utils:pmap(fun({_Node, Port}) -> stop_slave(Port) end, NodeConfig),
   ok.
 
-stop_slave(Node) ->
+stop_slave(Port) ->
+  Node = list_to_atom(camus_nodename(Port)),
   case ct_slave:stop(Node) of
     {ok, HostNode} ->
       ct:pal("Node ~p [STOP OK]", [HostNode]);

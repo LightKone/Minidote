@@ -2,14 +2,15 @@
 
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("common_test/include/ct.hrl").
--export([all/0, init_per_suite/1, counter_test_local/1, counter_test_waiting/1, counter_test_with_clock/1, mv_register_concurrent/1, end_per_suite/1, mv_register_concurrent2/1]).
+-export([all/0, init_per_suite/1, counter_test_local/1, counter_test_waiting/1, counter_test_with_clock/1, mv_register_concurrent/1, end_per_suite/1, mv_register_concurrent2/1, long_run_test/1]).
 
 all() -> [
   counter_test_local,
   counter_test_waiting,
   counter_test_with_clock,
   mv_register_concurrent,
-  mv_register_concurrent2
+  % mv_register_concurrent2,
+  long_run_test
 ].
 
 init_per_suite(Config) ->
@@ -119,6 +120,50 @@ mv_register_concurrent2(Config) ->
         % Since we added a delay of 50ms, the 3 assignments
         % should have happened concurrently, so all values should be present:
         ?assertEqual([<<"A">>, <<"B">>, <<"C">>], Val);
+      _ ->
+        throw({'values have not converged', [ValA, ValB, ValC]})
+    end
+  end),
+  ok.
+
+% runs for about 30 seconds
+long_run_test(Config) ->
+  N = 300,
+
+  [NodeA, NodeB, NodeC] = Nodes = proplists:get_value(nodes, Config),
+  % Add a delay to each node:
+  test_setup:mock_link_layer(Nodes, #{delay => 50, debug => true}),
+
+  Counter = {<<"counter">>, antidote_crdt_counter_pn, <<"long_run_test">>},
+
+  IncrementAt = fun(Node) ->
+    {ok, _} = rpc:call(NodeA, minidote, update_objects, [[{Counter, increment, 1}], ignore])
+  end,
+  ReadAt = fun(Node) ->
+    {ok, [{Counter, Val}], _} = rpc:call(Node, minidote, read_objects, [[Counter], ignore]),
+    Val
+  end,
+
+  lists:foreach(fun(I) ->
+    IncrementAt(NodeA),
+    IncrementAt(NodeB),
+    ct:pal("intermediate ValueA = ~p", [ReadAt(NodeA)]),
+    ct:pal("intermediate ValueB = ~p", [ReadAt(NodeB)]),
+    ct:pal("intermediate ValueC = ~p", [ReadAt(NodeC)]),
+    timer:sleep(100)
+  end, lists:seq(1,300)),
+
+  % eventually all replicas should have the same value:
+  test_setup:eventually(fun() ->
+    ValA = ReadAt(NodeA),
+    ValB = ReadAt(NodeB),
+    ValC = ReadAt(NodeC),
+    ct:pal("ValueA = ~p", [ValA]),
+    ct:pal("ValueB = ~p", [ValB]),
+    ct:pal("ValueC = ~p", [ValC]),
+    case lists:usort([ValA, ValB, ValC]) of
+      [Val] ->
+        ?assertEqual(2 * N, Val);
       _ ->
         throw({'values have not converged', [ValA, ValB, ValC]})
     end
