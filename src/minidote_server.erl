@@ -77,7 +77,7 @@ init(_Args) ->
   Members = os:getenv("MEMBERS", ""),
   List = string:split(Members, ",", all),
   lager:info("List of members: ~p", [List]),
-  Me = case os:getenv("CAMUS_NODENAME", "") of
+  Me = case os:getenv("NODE_NAME", "") of
     "" -> node();
     V -> list_to_atom(V)
   end,
