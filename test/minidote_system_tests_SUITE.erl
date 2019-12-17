@@ -9,7 +9,7 @@ all() -> [
   counter_test_waiting,
   counter_test_with_clock,
   mv_register_concurrent,
-  mv_register_concurrent2,
+  % mv_register_concurrent2,
   long_run_test
 ].
 
